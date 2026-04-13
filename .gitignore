@@ -1,0 +1,42 @@
+# 認証・シークレット
+.credentials.json
+mcp-needs-auth-cache.json
+
+# マシン固有設定（パーミッション・ローカルパス）
+settings.json
+settings.local.json
+
+# メモリ（個人情報を含む）
+memory/
+
+# 一時ファイル・ローカルデータ
+image-cache/
+plans/
+data/
+
+# 自動生成・キャッシュ（再現不要）
+projects/
+sessions/
+session-env/
+shell-snapshots/
+file-history/
+history.jsonl
+paste-cache/
+cache/
+backups/
+tasks/
+telemetry/
+plugins/
+__pycache__/
+*.pyc
+
+# レポート（生成データ）
+reports/
+
+# ログ
+cost.log
+scripts/*.log
+known-failures-staging.log
+
+# プラン（セッション固有）
+plans/

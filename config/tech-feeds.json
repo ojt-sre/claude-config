@@ -1,0 +1,12 @@
+{
+  "feeds": [
+    {"name": "AWS Blog", "url": "https://aws.amazon.com/blogs/aws/feed/"},
+    {"name": "AWS Containers", "url": "https://aws.amazon.com/blogs/containers/feed/"},
+    {"name": "Terraform Releases", "url": "https://github.com/hashicorp/terraform/releases.atom"},
+    {"name": "Terraform AWS Provider", "url": "https://github.com/hashicorp/terraform-provider-aws/releases.atom"},
+    {"name": "Claude Code Releases", "url": "https://github.com/anthropics/claude-code/releases.atom"},
+    {"name": "AWS Security", "url": "https://aws.amazon.com/blogs/security/feed/"},
+    {"name": "Kubernetes Releases", "url": "https://github.com/kubernetes/kubernetes/releases.atom"},
+    {"name": "Anthropic News", "url": "https://www.anthropic.com/news", "type": "scrape"}
+  ]
+}

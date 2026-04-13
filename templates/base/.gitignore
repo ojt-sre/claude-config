@@ -1,0 +1,48 @@
+# 認証情報・シークレット
+.env
+.env.*
+.env.local
+*.pem
+*.key
+*_rsa
+*_ed25519
+secrets/
+credentials
+
+# 個人設定（チーム共有しない）
+CLAUDE.local.md
+
+# 依存パッケージ
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+vendor/
+
+# ビルド・成果物
+dist/
+build/
+out/
+target/
+
+# ログ・一時ファイル
+*.log
+logs/
+tmp/
+.tmp/
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# テスト・カバレッジ
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+junit*.xml
+
+# IDE
+.idea/
+.vscode/settings.json

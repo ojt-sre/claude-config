@@ -1,0 +1,50 @@
+# .clauderules — SRE ハードルール集
+
+> CLAUDE.md より強い強制力。違反は即時停止。
+
+---
+
+## HARD RULES
+
+### 本番環境の保護
+
+- `environments/prod/` 配下の編集・削除は確認必須
+- `terraform apply` / `kubectl delete` / `kubectl drain` は確認必須
+- AWS本番アカウントへの変更系コマンドは事前に影響範囲を提示
+- 本番DBへの `DROP` / `TRUNCATE` / `DELETE（WHERE句なし）` は絶対禁止
+
+### シークレット・認証情報の保護
+
+- `.env` / `.env.*` / `*.pem` / `*.key` / `~/.ssh/**` / `~/.aws/credentials` を読み込まない・出力しない
+- APIキー・パスワード・トークンはコードにハードコードしない → `${VAR_NAME}` 参照
+
+### 危険操作の禁止
+
+- `rm -rf` / `curl|bash` / `chmod 777` / `git push --force` は確認なしに実行しない
+
+### IAM・権限管理
+
+- AIが生成したIAMポリシーはレビューなしに適用しない
+- `*` ワイルドカード権限を提案・適用しない
+- `aws iam` 系コマンドは確認必須
+
+---
+
+## STYLE RULES
+
+### Terraform
+
+- 変数は `variables.tf` で定義し型を明示。リソース名は `snake_case`
+- ハードコード禁止（AMI ID等は変数化）
+- モジュール共通化は3箇所以上で再利用される場合のみ
+- `terraform plan` 確認後に `apply`。`tfstate` はリモート管理のみ
+
+### Python
+
+- `black` + `mypy` で整形・型チェック
+- 関数は単一責任、20行超で分割を提案
+
+### 全般
+
+- マジックナンバーは定数・変数に切り出す
+- コメントは「なぜそうするか」を書く
