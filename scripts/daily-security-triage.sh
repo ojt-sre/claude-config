@@ -27,6 +27,21 @@ source "${HOME}/.claude/scripts/lib.sh"
 DRY_RUN=0
 for _arg in "$@"; do [ "$_arg" = "--dry-run" ] && DRY_RUN=1; done
 
+# --- 重複実行防止（PIDベース: 異常終了でロックが残っても自動回復） ---
+LOCK_FILE="/tmp/daily-security-triage.lock"
+if [ -f "${LOCK_FILE}" ]; then
+    pid=$(cat "${LOCK_FILE}")
+    if kill -0 "${pid}" 2>/dev/null; then
+        echo "${LOG_PREFIX} INFO: 前回の実行が残っているためスキップ (PID=${pid})"
+        exit 0
+    else
+        echo "${LOG_PREFIX} WARN: ロックファイルが残っていたが PID=${pid} は存在しない。削除して続行"
+        rm -f "${LOCK_FILE}"
+    fi
+fi
+echo $$ > "${LOCK_FILE}"
+trap "rm -f '${LOCK_FILE}'" EXIT
+
 echo "${LOG_PREFIX} ===== セキュリティトリアージ開始 ====="
 
 # STEP 1: L1 — GitHub Advisory (critical + high = CVSS 7.0+) を取得
@@ -163,7 +178,7 @@ try:
             return {'name': name, 'value': (val or '(情報なし)')[:1024], 'inline': False}
 
         embeds.append({
-            'title': '先輩！マズいっス！脆弱性報告っスよ！',
+            'title': '🚨 先輩！マズいっス！脆弱性報告っスよ！',
             'url': url,
             'description': f'**[{ghsa}] CVSS: {score} — {title}**',
             'color': color,

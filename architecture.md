@@ -16,6 +16,7 @@
 | script | `scripts/daily-tech-feeds.sh` |
 | script | `scripts/fetch-tech-feeds.py` |
 | config | `config/tech-feeds.json` |
+| config | `config/discord.env` |
 | cron | `0 6 * * *` daily-tech-feeds.sh |
 | output | `reports/tech-feeds-latest.json` |
 
@@ -92,6 +93,7 @@ Claude Code のツール実行を制御する hook 群。
 | command | `commands/post-mortem.md` | SRE ポストモーテム作成 |
 | command | `commands/promote.md` | 知見のグローバル昇格 |
 | command | `commands/runbook-template.md` | SRE Runbook 生成 |
+| command | `commands/rank-tech-feeds.md` | テックフィードのランキング・要約 |
 | command | `commands/security-triage.md` | セキュリティトリアージ（run_cmd用） |
 | command | `commands/weekly-review.md` | 週次レビュー |
 
