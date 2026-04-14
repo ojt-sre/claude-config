@@ -12,8 +12,8 @@ description: 週次ベストプラクティス更新と全体確認
 
 1. `~/my-freelance-sre/01-admin-setup/MyBestPractices.md` を読み、各セクションの内容を把握する
 
-2. 以下のクエリで WebSearch を実行する（コミュニティ情報、各1〜2件）:
-   - `Claude Code tips tricks reddit OR zenn OR qiita 2025`
+2. 以下のクエリで WebSearch を実行する（コミュニティ情報、各1〜2件）。クエリ中の年は**実行日の西暦年**に置き換えること:
+   - `Claude Code tips tricks reddit OR zenn OR qiita {YEAR}`
    - `claude code CLAUDE.md best practices examples`
 
 3. WebSearch の結果を MyBestPractices.md の各セクションに照らし合わせる:
