@@ -18,8 +18,8 @@ LOG_PREFIX="[${DATE} $(date +%H:%M:%S)]"
 ADVISORIES_JSON="${HOME}/.claude/reports/security-advisories-latest.json"
 PENDING_JSON="${HOME}/.claude/reports/security-advisories-pending.json"
 TRIAGE_JSON="${HOME}/.claude/reports/security-triage-latest.json"
-# 本日処理済みの GHSA ID を記録。日付入りにすることで翌日は自動リセット
-NOTIFIED_FILE="${HOME}/.claude/reports/security-notified-${DATE}.txt"
+# 処理済みの GHSA ID を永続記録。一度通知した脆弱性は再通知しない
+NOTIFIED_FILE="${HOME}/.claude/reports/security-notified.txt"
 
 source "${HOME}/.claude/scripts/lib.sh"
 
