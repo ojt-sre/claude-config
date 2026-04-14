@@ -11,6 +11,7 @@ set -euo pipefail
 DATE=$(date +%Y-%m-%d)
 LOG_PREFIX="[${DATE} $(date +%H:%M:%S)]"
 FEEDS_OUTPUT="${HOME}/.claude/reports/tech-feeds-latest.json"
+FEEDS_DAILY="${HOME}/.claude/reports/tech-feeds-${DATE}.json"
 LOCAL_MD="${HOME}/CLAUDE.local.md"
 
 # --- ドライランフラグ ---
@@ -34,6 +35,11 @@ TOTAL=$(python3 -c "import json; print(json.load(open('${FEEDS_OUTPUT}'))['total
 ERRORS=$(python3 -c "import json; print(len(json.load(open('${FEEDS_OUTPUT}'))['errors']))")
 
 echo "${LOG_PREFIX} INFO: ${TOTAL}件取得, エラー${ERRORS}件"
+
+# 日次ファイルにも保存（weekly-review.sh が週末に7日分まとめて読む）
+if [ "${DRY_RUN}" = "0" ]; then
+    cp "${FEEDS_OUTPUT}" "${FEEDS_DAILY}"
+fi
 
 # CLAUDE.local.md に新着サマリを記録
 if [ "${DRY_RUN}" = "0" ] && [ "${TOTAL}" -gt 0 ]; then

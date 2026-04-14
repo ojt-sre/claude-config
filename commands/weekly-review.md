@@ -12,8 +12,8 @@ description: 週次ベストプラクティス更新と全体確認
 
 1. `~/my-freelance-sre/01-admin-setup/MyBestPractices.md` を読み、各セクションの内容を把握する
 
-2. `~/.claude/reports/tech-feeds-latest.json` を読み、過去1週間の公式アップデートを確認する
-   - ファイルが存在しない場合はスキップして手順3に進む
+2. `~/.claude/reports/tech-feeds-YYYY-MM-DD.json`（過去7日分の日次ファイル）を全て読み、1週間の公式アップデートを確認する
+   - ファイルが1件も存在しない場合はスキップして手順3に進む
    - `errors` にフィード取得失敗があれば、該当ソースは WebSearch でカバーする
 
 3. 以下のクエリで WebSearch を実行する（コミュニティ情報、各1〜2件）:
