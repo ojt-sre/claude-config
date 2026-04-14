@@ -9,9 +9,11 @@ COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 block() { echo "Blocked: $1" >&2; exit 2; }
 
 # --- クォート除去・コマンド分割 ---
+# 改行を空白に正規化してから除去する（コミットメッセージ等の複数行文字列で
+# "git clean -f" のような文字列が誤検知されるのを防ぐ。known-failures.md 参照）
 # シングル/ダブルクォート内の文字列を除去（URL等に含まれるメタ文字の誤検知を防ぐ）
 # エスケープ済みクォート等のエッジケースは安全側（誤検知）に倒す
-SANITIZED=$(echo "$COMMAND" | sed "s/'[^']*'//g" | sed 's/"[^"]*"//g')
+SANITIZED=$(echo "$COMMAND" | tr '\n' ' ' | sed "s/'[^']*'//g" | sed 's/"[^"]*"//g')
 # シェル演算子（&&, ||, ;, |）で分割してチェック
 SUBCMDS=$(echo "$SANITIZED" | sed 's/&&/\n/g; s/||/\n/g; s/;/\n/g; s/|/\n/g')
 

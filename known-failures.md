@@ -21,6 +21,7 @@
 | `git config --global *` / `--system *` | `git -c key=value` でインライン指定 |
 | `git push --force *` | ユーザーに依頼 |
 | `git checkout --theirs <file>` / `git checkout --ours <file>` | ユーザーに依頼（マージコンフリクト解消中に片方の変更を丸ごと破棄する。取り返しがつかないため最重要リスク） |
+| `git commit -m "$(cat <<'EOF'...EOF)"` でメッセージ内に危険パターン文字列が含まれる場合 | `git commit -F <file>` でメッセージをファイル経由にする（heredoc展開でメッセージ内容が誤検知される。validate-command.sh の改行正規化で修正済み） |
 
 ## Bash の `&&` チェーンと権限マッチ
 
