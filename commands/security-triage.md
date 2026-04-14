@@ -12,9 +12,18 @@ model: sonnet
 
 # セキュリティトリアージ
 
-`~/.claude/reports/security-advisories-latest.json` を読み、各脆弱性が **クラウド環境（AWS/ECS/EKS/Terraform）を利用する顧客** に影響する可能性があるかトリアージする。
+`~/.claude/reports/security-advisories-pending.json` を読み、各脆弱性が **クラウド環境（AWS/ECS/EKS/Terraform）を利用する顧客** に影響する可能性があるかトリアージする。
 
-## 判断基準
+## スコア閾値（即時性に基づく）
+
+このスクリプトは5分ごとに実行される。スコア閾値は即時性に応じて設定する。
+
+- **CVSS 7.0未満**: 即時通知不要。`relevant: false` とする（fetch段階でも除外済み）
+- **CVSS 7.0〜8.9（high）**: 当日中対応 → urgency: `"medium"`
+- **CVSS 9.0以上（critical）**: 即時対応 → urgency: `"high"`
+- CVSSスコアが未記録（0）の場合: 下記の関連性判断を適用し urgency は `"medium"` とする
+
+## 関連性判断基準
 
 以下のいずれかに該当すれば `relevant: true`:
 
@@ -35,12 +44,20 @@ model: sonnet
     "ghsa_id": "GHSA-xxxx-xxxx-xxxx",
     "relevant": true,
     "urgency": "high",
-    "reason": "axios は npm 週1億DL。ほぼ全ての Node.js プロジェクトの transitive dependency",
-    "action": "顧客の package-lock.json を確認し、影響バージョンを使っていないか検証"
+    "cvss_score": 9.8,
+    "title_ja": "axios のリダイレクト時の認証情報漏洩",
+    "summary_ja": "axios がリダイレクト先にも Authorization ヘッダをそのまま転送してしまう。外部サーバへ意図せず認証情報が漏れる。",
+    "impact_ja": "axios を使っている Node.js アプリ全般。API キーや Bearer トークンを送るサービス間通信が特に危険。npm 週1億 DL のため被害範囲は非常に広い。",
+    "mitigation_temp_ja": "axios の maxRedirects: 0 を設定してリダイレクトを無効化するか、リダイレクト先を手動で検証する。",
+    "mitigation_perm_ja": "axios を修正済みバージョンにアップデートし、package-lock.json で影響バージョンが残っていないか確認する。",
+    "reason": "axios は npm 週1億DL。ほぼ全ての Node.js プロジェクトの transitive dependency"
   }
 ]
 ```
 
-- `urgency`: `"high"` = 即対応推奨 / `"medium"` = 次回メンテで対応 / `"low"` = 認知のみ
-- `relevant: false` の項目も配列に含めるが、`reason` は1行で簡潔に
+- `title_ja`: 原文タイトルの日本語訳（50字以内）
+- `summary_ja`: 「バカでもわかる」説明。エンジニアでない人でも何が起きているか理解できるレベルで書く
+- `impact_ja`: 「誰が・何を使っていると危険か」を具体的に記述
+- `mitigation_temp_ja` / `mitigation_perm_ja`: 具体的なコマンドやバージョン番号を含む実践的な内容
+- `relevant: false` の項目も配列に含める（reason のみ1行、他フィールドは省略可）
 - 脆弱性が0件の場合は空配列 `[]` を返す
