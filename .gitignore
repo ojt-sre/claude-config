@@ -1,6 +1,7 @@
 # 認証・シークレット
 .credentials.json
 mcp-needs-auth-cache.json
+config/
 
 # マシン固有設定（パーミッション・ローカルパス）
 settings.json

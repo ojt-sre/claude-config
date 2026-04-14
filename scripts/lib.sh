@@ -13,6 +13,28 @@ fi
 # コストログのパス（全リポジトリ共通）
 COST_LOG="${HOME}/.claude/cost.log"
 
+# Discord webhook URL（~/.claude/config/discord.env から読み込む）
+_DISCORD_ENV="${HOME}/.claude/config/discord.env"
+if [ -f "$_DISCORD_ENV" ]; then
+    source "$_DISCORD_ENV"
+fi
+
+# notify_discord <webhook_url> <payload>
+# Discord webhook に通知を送る。URL が空の場合はスキップ。
+# payload は JSON 文字列。embeds を含む場合はそのまま渡す。
+# 平文の場合は {"content": "..."} 形式で渡す。
+notify_discord() {
+    local webhook_url="$1"
+    local payload="$2"
+    if [ -z "$webhook_url" ]; then
+        return 0
+    fi
+    curl -s -X POST "$webhook_url" \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        > /dev/null 2>&1 || true
+}
+
 # run_cmd <コマンド名> [引数] [allowed-tools] [disallowed-tools]
 # .claude/commands/<コマンド名>.md の内容を claude --print に渡す。
 # ローカル優先・グローバルフォールバック。

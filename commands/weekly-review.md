@@ -12,20 +12,16 @@ description: 週次ベストプラクティス更新と全体確認
 
 1. `~/my-freelance-sre/01-admin-setup/MyBestPractices.md` を読み、各セクションの内容を把握する
 
-2. `~/.claude/reports/tech-feeds-YYYY-MM-DD.json`（過去7日分の日次ファイル）を全て読み、1週間の公式アップデートを確認する
-   - ファイルが1件も存在しない場合はスキップして手順3に進む
-   - `errors` にフィード取得失敗があれば、該当ソースは WebSearch でカバーする
-
-3. 以下のクエリで WebSearch を実行する（コミュニティ情報、各1〜2件）:
+2. 以下のクエリで WebSearch を実行する（コミュニティ情報、各1〜2件）:
    - `Claude Code tips tricks reddit OR zenn OR qiita 2025`
    - `claude code CLAUDE.md best practices examples`
 
-4. RSS + WebSearch の結果を MyBestPractices.md の各セクションに照らし合わせる:
+3. WebSearch の結果を MyBestPractices.md の各セクションに照らし合わせる:
    - **新しい知見・機能** → 該当セクションに追記
    - **古くなった記述（バージョン・手順・推奨事項）** → 更新または削除
    - **既存内容と重複するもの** → スキップ
 
-5. ファイルを直接編集し、ファイル末尾の「最終更新」日付を今日の日付に更新する
+4. ファイルを直接編集し、ファイル末尾の「最終更新」日付を今日の日付に更新する
 
 6. 変更箇所を一覧で報告する（変更なしの場合もその旨を報告）
 
