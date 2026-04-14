@@ -50,6 +50,7 @@ model: sonnet
     "impact_ja": "axios を使っている Node.js アプリ全般。API キーや Bearer トークンを送るサービス間通信が特に危険。npm 週1億 DL のため被害範囲は非常に広い。",
     "mitigation_temp_ja": "axios の maxRedirects: 0 を設定してリダイレクトを無効化するか、リダイレクト先を手動で検証する。",
     "mitigation_perm_ja": "axios を修正済みバージョンにアップデートし、package-lock.json で影響バージョンが残っていないか確認する。",
+    "url": "https://github.com/advisories/GHSA-xxxx-xxxx-xxxx",
     "reason": "axios は npm 週1億DL。ほぼ全ての Node.js プロジェクトの transitive dependency"
   }
 ]

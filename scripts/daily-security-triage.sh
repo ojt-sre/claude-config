@@ -156,6 +156,7 @@ try:
         score = item.get('cvss_score', '不明')
         ghsa  = item.get('ghsa_id', '')
         title = item.get('title_ja', item.get('reason', '詳細不明'))
+        url   = item.get('url', f'https://github.com/advisories/{ghsa}')
         color = 16711680 if item.get('urgency') == 'high' else 16753920  # high=赤, medium=橙
 
         def field(name, val):
@@ -163,6 +164,7 @@ try:
 
         embeds.append({
             'title': '先輩！マズいっス！脆弱性報告っスよ！',
+            'url': url,
             'description': f'**[{ghsa}] CVSS: {score} — {title}**',
             'color': color,
             'fields': [
