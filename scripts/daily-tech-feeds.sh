@@ -62,7 +62,7 @@ for n, item in enumerate(rest, 2):
     lines.append('')
 payload = {
     'embeds': [{
-        'title': '📡 先輩！今日の最新ニュースっス！',
+        'title': '📡 先輩！今日の最新情報っス！',
         'description': '\n'.join(lines).strip(),
         'color': 3447003,
         'footer': {'text': '${DATE} / ${TOTAL}件取得'}

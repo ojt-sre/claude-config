@@ -117,3 +117,18 @@ r"CD\d+秒(?:（Lv\d+）)?"
 症状: `ERROR: JSON配列が見つかりません` — Haiku が `[{...}]` でなく `{...}` を返す。
 原因: Haiku は出力形式の指示が曖昧だと単一オブジェクトで返すことがある。
 対処: コマンドプロンプトの出力形式に `**必ず [ で始まるJSON配列で返すこと。{ で始まるオブジェクトは不可。**` を明示する。
+
+## claude --print: frontmatter 付きファイルを -p で渡すと --- がオプション誤解釈される
+
+症状: `-p "$(cat cmd.md)"` で frontmatter（`---\n...\n---`）含むファイルを渡すと `error: unknown option '---\n...'`
+原因: Claude CLI が `---` で始まる引数をオプション名として解釈する。
+対処: frontmatter を除去してから `--` で渡す（`lib.sh` の `run_cmd` と同じ方式）。
+
+```bash
+# NG
+-p "$(cat "${HOME}/.claude/commands/cmd.md")"
+
+# OK: frontmatter を除去して -- で渡す（2026-04-14 daily-security-triage.sh で実測）
+_prompt=$(awk 'NR==1 && /^---$/{skip=1;next} skip && /^---$/{skip=0;next} !skip' "cmd.md")
+claude --print ... -- "$_prompt"
+```
