@@ -118,6 +118,34 @@ r"CD\d+秒(?:（Lv\d+）)?"
 原因: Haiku は出力形式の指示が曖昧だと単一オブジェクトで返すことがある。
 対処: コマンドプロンプトの出力形式に `**必ず [ で始まるJSON配列で返すこと。{ で始まるオブジェクトは不可。**` を明示する。
 
+## set -euo pipefail 環境での `|| echo 0` パターン
+
+症状: `COUNT=$(find ... | wc -l || echo 0)` で COUNT が `"0\n0"` になり integer expression エラー
+原因: find が exit 1 → pipefail でパイプ全体 exit 1 → wc -l が `0` を出力済みなのに `|| echo 0` がさらに `0` を追加する
+対処: `|| echo 0` → `|| true` に変える。`wc -l` は空パイプでも `0` を出力するので `echo 0` は不要
+
+```bash
+# NG
+COUNT=$(find "${DIR}" -name "*.md" 2>/dev/null | wc -l || echo 0)
+
+# OK
+COUNT=$(find "${DIR}" -name "*.md" 2>/dev/null | wc -l || true)
+```
+
+## lib.sh source 前の NVM 読み込み必須
+
+症状: cron 環境で `ERROR: lib.sh requires Node.js (node) but it was not found in PATH` → スクリプトが即 exit 1
+原因: lib.sh 冒頭で `node` の存在チェックをしているため、NVM 未読込の cron 環境では node が PATH に存在しない
+対処: `source lib.sh` より前に NVM を読み込む（coding-standards.md のテンプレート参照）
+
+```bash
+# lib.sh を source する全スクリプトに必須
+export NVM_DIR="${HOME}/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+source "${PROJECT_DIR}/scripts/lib.sh"  # ← この前に NVM を読む
+```
+
 ## claude --print: frontmatter 付きファイルを -p で渡すと --- がオプション誤解釈される
 
 症状: `-p "$(cat cmd.md)"` で frontmatter（`---\n...\n---`）含むファイルを渡すと `error: unknown option '---\n...'`

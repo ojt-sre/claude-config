@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+export NVM_DIR="${HOME}/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 PROJECT_DIR="${HOME}/.claude"
 DATE=$(date +%Y-%m-%d)
 LOG_PREFIX="[${DATE} $(date +%H:%M:%S)]"
