@@ -18,6 +18,7 @@ model: claude-haiku-4-5-20251001
 3. 全選出記事をSREとして重要度の高い順に並べ、上位5件に絞る
 4. 1位の記事を `recommended: true` にする
 5. 各記事の summary を日本語で50字以内に要約する
+6. SRE業務での具体的な活用シーンを1行（例: 「ECSデプロイ手順の見直し時に参照」「Terraform upgrade前のbreaking change確認に」）で `use_case` に書く
 
 ## 判断基準
 
@@ -43,6 +44,7 @@ model: claude-haiku-4-5-20251001
     "title": "v2.1.108",
     "url": "https://...",
     "summary_ja": "プロンプトキャッシュの1時間設定用環境変数を追加。",
+    "use_case": "Claude Codeのアップデート確認・settings.json見直しに",
     "recommended": false
   }
 ]

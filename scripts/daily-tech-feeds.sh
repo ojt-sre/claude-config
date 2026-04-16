@@ -55,12 +55,16 @@ if rec:
     lines.append('**私のおすすめはこれっスよ！要チェックっス！**')
     lines.append(f\"⭐ **{rec['source']}** — {rec['title']}\")
     lines.append(rec.get('summary_ja', ''))
+    if rec.get('use_case'):
+        lines.append(f\"💡 {rec['use_case']}\")
     lines.append(rec.get('url', ''))
     lines.append('')
 rest = [i for i in items if not i.get('recommended')]
 for n, item in enumerate(rest, 2):
     lines.append(f\"{n}. **{item['source']}** — {item['title']}\")
     lines.append(item.get('summary_ja', ''))
+    if item.get('use_case'):
+        lines.append(f\"💡 {item['use_case']}\")
     lines.append(item.get('url', ''))
     lines.append('')
 payload = {
