@@ -3,7 +3,7 @@
 > **ここに書くもの**: AIがコードを生成・修正するとき守るべきテンプレート・命名規則・必須パターン（規約）。
 > **書かないもの**: 実運用の経験則 → `best-practices.md` / 過去の失敗パターン → `known-failures.md`
 > プロジェクト固有の規約は各 `.clauderules` の STYLE RULES を優先する。
-> 最終更新: 2026-04-14
+> 最終更新: 2026-04-16
 
 ---
 
@@ -183,7 +183,30 @@ _OVERRIDE = {'monkeyking': 'wukong'}  # Wukong: ddragonKey=MonkeyKing だが Lol
 
 ---
 
-## 5. Markdown ドキュメント
+## 5. Python スクリプト
+
+### ファイル操作: encoding="utf-8" を必ず明示する
+
+`open()` はデフォルトエンコーディングを `locale.getpreferredencoding()` から取得する。
+cron 環境ではロケールが最小設定になる場合があり、デフォルトが UTF-8 でないと日本語ファイルの読み書きで文字化けが発生する。
+（実績: quality-fix.py で `ー` が U+FFFD に化け、次回実行で自己修復するバグが 2026-04-15 に確認）
+
+```python
+# NG: cron環境でロケール依存になる
+with open(path) as f: ...
+json.load(open(data_file))
+
+# OK: 常に明示する
+with open(path, encoding="utf-8") as f: ...
+json.load(open(data_file, encoding="utf-8"))
+```
+
+- テキストファイル（.md / .json / .txt）の読み書き全てに適用する
+- `urllib.request.urlopen` 等のネットワーク IO は対象外
+
+---
+
+## 6. Markdown ドキュメント
 
 | ルール | 例 |
 |---|---|
