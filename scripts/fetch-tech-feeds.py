@@ -22,7 +22,27 @@ from html import unescape
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".claude" / "config" / "tech-feeds.json"
+SEEN_URLS_PATH = Path.home() / ".claude" / "data" / "tech-feeds-seen-urls.json"
+SEEN_URLS_EXPIRE_DAYS = 30
 ATOM_NS = "http://www.w3.org/2005/Atom"
+
+
+def load_seen_urls() -> dict[str, str]:
+    """過去に表示済みのURL辞書を読み込む {url: "YYYY-MM-DD"}"""
+    if not SEEN_URLS_PATH.exists():
+        return {}
+    with open(SEEN_URLS_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_seen_urls(seen: dict[str, str]) -> None:
+    """seen URLsを保存。30日以上前のエントリは削除"""
+    cutoff = (datetime.now() - timedelta(days=SEEN_URLS_EXPIRE_DAYS)).strftime("%Y-%m-%d")
+    pruned = {url: date for url, date in seen.items() if date >= cutoff}
+    SEEN_URLS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SEEN_URLS_PATH.write_text(
+        json.dumps(pruned, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def load_config() -> dict:
@@ -253,12 +273,36 @@ def main():
         except Exception as e:
             errors.append({"source": feed["name"], "error": str(e)})
 
+    # URL 重複除去（同一URLが複数フィードに現れる場合、先に取得した方を残す）
+    seen_urls: set[str] = set()
+    unique_entries = []
+    for entry in all_entries:
+        url = entry.get("url", "")
+        if url and url in seen_urls:
+            continue
+        seen_urls.add(url)
+        unique_entries.append(entry)
+
+    # 跨ぎ重複除去（過去30日以内に表示済みのURLをスキップ）
+    seen_urls_history = load_seen_urls()
+    today = datetime.now().strftime("%Y-%m-%d")
+    deduped_entries = []
+    for entry in unique_entries:
+        url = entry.get("url", "")
+        if url and url in seen_urls_history:
+            continue
+        deduped_entries.append(entry)
+        if url:
+            seen_urls_history[url] = today
+    save_seen_urls(seen_urls_history)
+    unique_entries = deduped_entries
+
     result = {
         "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "days": args.days,
-        "total_entries": len(all_entries),
+        "total_entries": len(unique_entries),
         "errors": errors,
-        "entries": sorted(all_entries, key=lambda x: x["published"], reverse=True),
+        "entries": sorted(unique_entries, key=lambda x: x["published"], reverse=True),
     }
 
     output = json.dumps(result, ensure_ascii=False, indent=2)
