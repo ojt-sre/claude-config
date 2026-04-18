@@ -104,13 +104,16 @@ L5（自己改善）レイヤーは以下の範囲でユーザー確認なしに
 
 ## セッション管理（Checkpointer）
 
-- **`~/CLAUDE.local.md` は総合秘書（全リポジトリのタスクを統括）。各リポジトリの `CLAUDE.local.md` は専門秘書（そのリポジトリ固有のタスク＋環境情報）**
-- 開始時: `~/CLAUDE.local.md` があれば引き継ぎメモを確認・冒頭で報告
+- **`~/CLAUDE.local.md` は口調設定と Obsidian 参照先のみ。長期記憶は `/mnt/c/Obsidian/` に持つ**
+- **`/mnt/c/Obsidian/90_Claude作業用/` は永続メモリ（タスク・作業ログ・アイデアを蓄積）**
+- 各リポジトリの `CLAUDE.local.md` は専門秘書（そのリポジトリ固有のタスク＋環境情報）
+- 開始時: `~/CLAUDE.local.md` の口調設定確認 → `/mnt/c/Obsidian/90_Claude作業用/タスク/` と最新ログを確認・冒頭で報告
 - 終了時・`/compact` 前:
-  1. 持ち越す情報を `~/CLAUDE.local.md`（総合）と作業リポジトリの `CLAUDE.local.md`（専門）の両方に書き出す（完了済みは削除）
-  2. `known-failures-staging.md` があれば `known-failures.md` へ整理・統合
-  3. 未使用の成果物（ファイル・パッケージ）がないか確認→削除
-  4. ローカルメモリにグローバル昇格すべきもの・重複・陳腐化がないか確認→整理
+  1. 作業ログを `/mnt/c/Obsidian/90_Claude作業用/ログ/YYYY-MM-DD.md` に追記（当日ファイルがあれば append、なければ新規作成）
+  2. タスク変化を `/mnt/c/Obsidian/90_Claude作業用/タスク/人間未完了.md` / `AI未完了.md` に反映（完了済みは削除）
+  3. `known-failures-staging.md` があれば `known-failures.md` へ整理・統合
+  4. 未使用の成果物（ファイル・パッケージ）がないか確認→削除
+  5. ローカルメモリにグローバル昇格すべきもの・重複・陳腐化がないか確認→整理
 - 常時: 改善点・リスク・懸念に気付いたら聞かれずとも提案する
 
 ## 参照

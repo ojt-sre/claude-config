@@ -1,9 +1,9 @@
 #!/bin/bash
 # daily-tech-feeds.sh
-# 毎日6時: 技術フィードを取得し Discord に通知する
+# 毎日8時: 技術フィードを取得し Discord に通知する
 #
 # cron登録:
-#   0 6 * * * ${HOME}/.claude/scripts/daily-tech-feeds.sh >> ${HOME}/.claude/scripts/daily-tech-feeds.log 2>&1
+#   0 8 * * * ${HOME}/.claude/scripts/daily-tech-feeds.sh >> ${HOME}/.claude/scripts/daily-tech-feeds.log 2>&1
 
 set -euo pipefail
 
@@ -78,6 +78,18 @@ payload = {
 print(json.dumps(payload))
 ")
         notify_discord "${DISCORD_WEBHOOK_TECH_FEEDS:-}" "$DISCORD_BODY"
+    fi
+
+    # Obsidian 記録
+    obsidian_md=$(run_cmd "obsidian-tech-feeds") || {
+        echo "${LOG_PREFIX} WARN: Obsidian記事生成失敗。スキップ"
+        obsidian_md=""
+    }
+
+    if [ -n "$obsidian_md" ]; then
+        OBSIDIAN_FILE="/mnt/c/Obsidian/20_最新情報/${DATE} テックニュースまとめ.md"
+        printf '%s\n' "$obsidian_md" > "$OBSIDIAN_FILE"
+        echo "${LOG_PREFIX} INFO: Obsidian記録完了: ${DATE} テックニュースまとめ.md"
     fi
 fi
 
