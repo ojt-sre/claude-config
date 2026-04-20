@@ -175,6 +175,17 @@ ops.forEach(op => {
             fs.mkdirSync(path.dirname(resolve(op.path)), {recursive: true});
             fs.appendFileSync(resolve(op.path), op.content, 'utf8');
             console.log('append:', op.path);
+        } else if (op.op === 'insert_after') {
+            const filePath = resolve(op.path);
+            const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+            if (!existing.includes(op.after)) {
+                console.error('ERROR: insert_after marker not found:', op.after);
+                process.exit(1);
+            }
+            const updated = existing.replace(op.after, op.after + op.content);
+            fs.mkdirSync(path.dirname(filePath), {recursive: true});
+            fs.writeFileSync(filePath, updated, 'utf8');
+            console.log('insert_after:', op.path, '(after:', op.after + ')');
         } else if (op.op === 'copy') {
             fs.mkdirSync(path.dirname(resolve(op.dest)), {recursive: true});
             fs.copyFileSync(resolve(op.src), resolve(op.dest));
