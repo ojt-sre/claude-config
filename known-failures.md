@@ -5,6 +5,12 @@
 
 ---
 
+## lol-guides-jp: fetch-patch-notes.py のURL形式
+
+症状: `HTTP Error 404: Not Found` — パッチノートページが見つからない
+原因: URL を `patch-26-8-notes` と組み立てていたが、実際は `league-of-legends-patch-26-8-notes`
+修正済み: 2026-04-21。`fetch-patch-notes.py` の slug 生成を両箇所（本番・dry-run）修正
+
 ## Git操作（WSL環境）
 
 | やりたいこと | NG | OK |
@@ -117,6 +123,14 @@ r"CD\d+秒(?:（Lv\d+）)?"
 症状: `ERROR: JSON配列が見つかりません` — Haiku が `[{...}]` でなく `{...}` を返す。
 原因: Haiku は出力形式の指示が曖昧だと単一オブジェクトで返すことがある。
 対処: コマンドプロンプトの出力形式に `**必ず [ で始まるJSON配列で返すこと。{ で始まるオブジェクトは不可。**` を明示する。
+解決済み: 2026-04-22。`~/.claude/scripts/lib.sh` の `dispatch_ops` で `{ ... }` オブジェクト単体を `[op]` に包む防御実装を追加（下の bracket-match ベース抽出ロジックに統合）。
+
+## dispatch_ops: 前置きテキストに `[...]` リテラルがあると誤抽出する
+
+症状: モデル出力が `選んだアイテム: [p0] 2026-04-21: ...\n[{...}]` のとき、`ERROR: JSON parse失敗` で落ちる。
+原因: 旧実装は `raw.indexOf('[')` で最初の `[` を掴んで bracket-match していたため、preamble の `[p0]` を JSON 開始と誤解釈していた。
+対処: 2026-04-22、`~/.claude/scripts/lib.sh` の `dispatch_ops` を修正。全 `[` 候補を列挙→各スライスを JSON.parse→全要素に `op` フィールドがある配列を採用。`{` 候補のフォールバックも同じ方式。テスト: `/tmp/dispatch_test.sh`（7ケース全 pass）。
+再発予防: モデル出力パースで `indexOf` を使うときは「リテラルがプロンプト変数に含まれ得るか」を確認する。
 
 ## set -euo pipefail 環境での `|| echo 0` パターン
 

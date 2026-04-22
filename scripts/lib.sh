@@ -140,30 +140,83 @@ const path = require('path');
 const base = process.env.DISPATCH_BASE;
 const resolve = p => path.isAbsolute(p) ? p : path.join(base, p);
 const raw = require('fs').readFileSync(0, 'utf8').trim();
-// JSONパース試行 → 失敗時は括弧カウントで [ から対応する ] を正確に抽出
-// （前置きテキスト・コードフェンス・コンテンツ内の ] に誤マッチしない）
-let ops;
-try {
-    ops = JSON.parse(raw);
-    // オブジェクト単体が来た場合は配列に包む
-    if (!Array.isArray(ops)) ops = [ops];
-} catch(e1) {
-    const start = raw.indexOf('[');
-    if (start === -1) { console.error('ERROR: JSON配列が見つかりません'); process.exit(1); }
-    let depth = 0, inStr = false, esc = false, end = -1;
-    for (let i = start; i < raw.length; i++) {
-        const c = raw[i];
+// モデル出力から op 配列を頑健に抽出する。
+// - 前置きテキストに [p0] など角括弧リテラルが混ざる場合がある
+//   → raw.indexOf('[') は誤マッチするので、全 [ 候補を列挙して各々 bracket-match
+// - 各候補スライスを JSON.parse し、配列内の全要素に op フィールドがあるものを採用
+// - 配列が取れなければ { 候補も同様に試し、op 持ちオブジェクト単体なら [op] に包む
+// coding-standards.md: Haiku はオブジェクト単体を返すことがある。本関数で吸収する。
+function matchBracket(text, start, open, close) {
+    let depth = 0, inStr = false, esc = false;
+    for (let i = start; i < text.length; i++) {
+        const c = text[i];
         if (esc) { esc = false; continue; }
-        if (c.charCodeAt(0) === 92 && inStr) { esc = true; continue; }
+        if (inStr && c.charCodeAt(0) === 92) { esc = true; continue; }
         if (c.charCodeAt(0) === 34) { inStr = !inStr; continue; }
         if (!inStr) {
-            if (c === '[') depth++;
-            else if (c === ']') { if (--depth === 0) { end = i; break; } }
+            if (c === open) depth++;
+            else if (c === close) { if (--depth === 0) return i; }
         }
     }
-    if (end === -1) { console.error('ERROR: JSON配列の終端が見つかりません'); process.exit(1); }
-    try { ops = JSON.parse(raw.slice(start, end + 1)); }
-    catch(e2) { console.error('ERROR: JSON parse失敗:', e2.message); process.exit(1); }
+    return -1;
+}
+function isOpArray(v) {
+    return Array.isArray(v) && v.length > 0
+        && v.every(o => o && typeof o === 'object' && typeof o.op === 'string');
+}
+function isOpObject(v) {
+    return v && typeof v === 'object' && !Array.isArray(v) && typeof v.op === 'string';
+}
+let ops = null;
+// 1) raw 全体を直接 parse（綺麗に JSON だけ返ってくるケース）
+try {
+    const direct = JSON.parse(raw);
+    if (isOpArray(direct)) ops = direct;
+    else if (isOpObject(direct)) ops = [direct];
+} catch(_) {}
+// 2) [ 候補を全列挙して op 配列を探す
+if (ops === null) {
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i] !== '[') continue;
+        const end = matchBracket(raw, i, '[', ']');
+        if (end === -1) continue;
+        try {
+            const parsed = JSON.parse(raw.slice(i, end + 1));
+            if (isOpArray(parsed)) { ops = parsed; break; }
+        } catch(_) {}
+    }
+}
+// 3) { 候補を全列挙して op オブジェクト単体を探す（Haiku のフォールバック）
+if (ops === null) {
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i] !== '{') continue;
+        const end = matchBracket(raw, i, '{', '}');
+        if (end === -1) continue;
+        try {
+            const parsed = JSON.parse(raw.slice(i, end + 1));
+            if (isOpObject(parsed)) { ops = [parsed]; break; }
+        } catch(_) {}
+    }
+}
+if (ops === null) {
+    // 失敗時は raw を <base>/logs/dispatch-failures/ に保存して調査可能にする
+    // （cron.log は上書きされやすく、先頭500文字では足りないケースがあるため）
+    // 削除: 各リポジトリ側で cleanup ジョブを設ける。
+    //   content-pipeline は scripts/cleanup-drafts.sh が 7 日超を削除。
+    //   他リポジトリで使う場合は同等のクリーンアップを追加すること。
+    try {
+        const logDir = path.join(base, 'logs/dispatch-failures');
+        fs.mkdirSync(logDir, {recursive: true});
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const logPath = path.join(logDir, ts + '.txt');
+        fs.writeFileSync(logPath, raw, 'utf8');
+        console.error('ERROR: op 配列/オブジェクトが見つかりません → raw を保存:', logPath);
+    } catch (e) {
+        console.error('ERROR: op 配列/オブジェクトが見つかりません（raw保存失敗:', e.message + '）');
+    }
+    console.error('--- 受信した raw (先頭 500 文字) ---');
+    console.error(raw.slice(0, 500));
+    process.exit(1);
 }
 ops.forEach(op => {
     try {
