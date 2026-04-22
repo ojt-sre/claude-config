@@ -30,9 +30,12 @@ ATOM_NS = "http://www.w3.org/2005/Atom"
 def load_seen_urls() -> dict[str, str]:
     """過去に表示済みのURL辞書を読み込む {url: "YYYY-MM-DD"}"""
     if not SEEN_URLS_PATH.exists():
+        print("INFO: seen-urls.json 未存在（初回実行）", file=sys.stderr)
         return {}
     with open(SEEN_URLS_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    print(f"INFO: seen-urls 読み込み: {len(data)}件", file=sys.stderr)
+    return data
 
 
 def save_seen_urls(seen: dict[str, str]) -> None:
@@ -43,6 +46,7 @@ def save_seen_urls(seen: dict[str, str]) -> None:
     SEEN_URLS_PATH.write_text(
         json.dumps(pruned, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    print(f"INFO: seen-urls 書き込み: {len(pruned)}件（pruned前: {len(seen)}件）", file=sys.stderr)
 
 
 def load_config() -> dict:
@@ -295,6 +299,8 @@ def main():
         if url:
             seen_urls_history[url] = today
     save_seen_urls(seen_urls_history)
+    skipped = len(unique_entries) - len(deduped_entries)
+    print(f"INFO: 跨ぎ重複除去: {skipped}件スキップ, {len(deduped_entries)}件通過", file=sys.stderr)
     unique_entries = deduped_entries
 
     result = {
