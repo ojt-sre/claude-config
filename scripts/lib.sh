@@ -231,8 +231,14 @@ ops.forEach(op => {
         } else if (op.op === 'insert_after') {
             const filePath = resolve(op.path);
             const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
-            if (!existing.includes(op.after)) {
+            const firstIdx = existing.indexOf(op.after);
+            if (firstIdx === -1) {
                 console.error('ERROR: insert_after marker not found:', op.after);
+                process.exit(1);
+            }
+            if (firstIdx !== existing.lastIndexOf(op.after)) {
+                console.error('ERROR: insert_after marker is not unique in file:', op.after);
+                console.error('  file:', op.path, '(複数回ヒットしたため挿入位置が特定できない)');
                 process.exit(1);
             }
             const updated = existing.replace(op.after, op.after + op.content);
