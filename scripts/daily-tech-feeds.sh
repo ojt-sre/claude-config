@@ -38,7 +38,23 @@ ERRORS=$(python3 -c "import json; print(len(json.load(open('${FEEDS_OUTPUT}'))['
 
 echo "${LOG_PREFIX} INFO: ${TOTAL}件取得, エラー${ERRORS}件"
 
-# Discord 通知（ドライランおよび0件の場合はスキップ）
+# Discord 通知（0件のときは「新規なしっス」だけ通知して Obsidian は書かない）
+if [ "${DRY_RUN}" = "0" ] && [ "${TOTAL}" = "0" ]; then
+    EMPTY_PAYLOAD=$(python3 -c "
+import json
+payload = {
+    'embeds': [{
+        'title': '📡 先輩！今日は新規なしっス！',
+        'description': '過去7日間のフィードは全部既出だったっス。明日また見ますっス！',
+        'color': 10070709,
+        'footer': {'text': '${DATE} / 0件取得'}
+    }]
+}
+print(json.dumps(payload))
+")
+    notify_discord "${DISCORD_WEBHOOK_TECH_FEEDS:-}" "$EMPTY_PAYLOAD"
+fi
+
 if [ "${DRY_RUN}" = "0" ] && [ "${TOTAL}" -gt 0 ]; then
     ranked_json=$(run_cmd "rank-tech-feeds") || {
         echo "${LOG_PREFIX} WARN: ランク付け失敗。通知をスキップ"
@@ -88,8 +104,50 @@ print(json.dumps(payload))
 
     if [ -n "$obsidian_md" ]; then
         OBSIDIAN_FILE="/mnt/c/Obsidian/20_最新情報/${DATE} テックニュースまとめ.md"
+        # Sonnet が「っス」を「っS」（半角S）で出力する癖があるため、書き出し前にサニタイズする。
+        # 「っS」直後は実観測で全て日本語句読点・区切り記号のみで、英単語の一部になるケースはなし（2026-05-20確認）。
+        obsidian_md=$(printf '%s' "$obsidian_md" | sed 's/っS/っス/g')
         printf '%s\n' "$obsidian_md" > "$OBSIDIAN_FILE"
         echo "${LOG_PREFIX} INFO: Obsidian記録完了: ${DATE} テックニュースまとめ.md"
+    fi
+
+    # ランキングで実際に選ばれた記事のURLだけを seen-urls に追記する。
+    # fetch-tech-feeds.py 側では書き込みを行わないため、
+    # ここで追記しないと同じ記事が翌日も候補として浮上し続ける。
+    # 30日経過したエントリは pruning する。
+    if [ -n "$ranked_json" ]; then
+        RANKED_JSON="$ranked_json" python3 - <<'PYEOF'
+import json
+import os
+from datetime import datetime, timedelta
+from pathlib import Path
+
+SEEN_PATH = Path.home() / ".claude" / "data" / "tech-feeds-seen-urls.json"
+EXPIRE_DAYS = 30
+
+ranked = json.loads(os.environ["RANKED_JSON"])
+today = datetime.now().strftime("%Y-%m-%d")
+
+seen = {}
+if SEEN_PATH.exists():
+    seen = json.loads(SEEN_PATH.read_text(encoding="utf-8"))
+
+added = 0
+for item in ranked:
+    url = item.get("url", "")
+    if not url:
+        continue
+    if url not in seen:
+        added += 1
+    seen[url] = today
+
+cutoff = (datetime.now() - timedelta(days=EXPIRE_DAYS)).strftime("%Y-%m-%d")
+pruned = {u: d for u, d in seen.items() if d >= cutoff}
+
+SEEN_PATH.parent.mkdir(parents=True, exist_ok=True)
+SEEN_PATH.write_text(json.dumps(pruned, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+print(f"INFO: seen-urls 更新: 新規追加 {added}件, 合計 {len(pruned)}件（pruned前: {len(seen)}件）")
+PYEOF
     fi
 fi
 
