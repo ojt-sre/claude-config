@@ -14,6 +14,7 @@ memory/
 image-cache/
 plans/
 data/
+.last-cleanup
 
 # 自動生成・キャッシュ（再現不要）
 projects/
