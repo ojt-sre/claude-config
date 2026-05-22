@@ -23,7 +23,7 @@ from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".claude" / "config" / "tech-feeds.json"
 SEEN_URLS_PATH = Path.home() / ".claude" / "data" / "tech-feeds-seen-urls.json"
-SEEN_URLS_EXPIRE_DAYS = 30
+# 30日経過した seen-urls は daily-tech-feeds.sh 側の seen 更新処理で pruning される。
 ATOM_NS = "http://www.w3.org/2005/Atom"
 
 
@@ -36,17 +36,6 @@ def load_seen_urls() -> dict[str, str]:
         data = json.load(f)
     print(f"INFO: seen-urls 読み込み: {len(data)}件", file=sys.stderr)
     return data
-
-
-def save_seen_urls(seen: dict[str, str]) -> None:
-    """seen URLsを保存。30日以上前のエントリは削除"""
-    cutoff = (datetime.now() - timedelta(days=SEEN_URLS_EXPIRE_DAYS)).strftime("%Y-%m-%d")
-    pruned = {url: date for url, date in seen.items() if date >= cutoff}
-    SEEN_URLS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SEEN_URLS_PATH.write_text(
-        json.dumps(pruned, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    print(f"INFO: seen-urls 書き込み: {len(pruned)}件（pruned前: {len(seen)}件）", file=sys.stderr)
 
 
 def load_config() -> dict:
@@ -288,17 +277,14 @@ def main():
         unique_entries.append(entry)
 
     # 跨ぎ重複除去（過去30日以内に表示済みのURLをスキップ）
+    # 注: seen-urls への書き込みはここでは行わない。
+    # 通過した全URLを既読扱いにすると、ランキングで漏れた候補が翌日以降浮上できなくなる。
+    # 実際にDiscord通知＆Obsidian記録された5件だけを daily-tech-feeds.sh 側で追記する。
     seen_urls_history = load_seen_urls()
-    today = datetime.now().strftime("%Y-%m-%d")
-    deduped_entries = []
-    for entry in unique_entries:
-        url = entry.get("url", "")
-        if url and url in seen_urls_history:
-            continue
-        deduped_entries.append(entry)
-        if url:
-            seen_urls_history[url] = today
-    save_seen_urls(seen_urls_history)
+    deduped_entries = [
+        e for e in unique_entries
+        if not (e.get("url", "") and e["url"] in seen_urls_history)
+    ]
     skipped = len(unique_entries) - len(deduped_entries)
     print(f"INFO: 跨ぎ重複除去: {skipped}件スキップ, {len(deduped_entries)}件通過", file=sys.stderr)
     unique_entries = deduped_entries
