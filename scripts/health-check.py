@@ -690,9 +690,22 @@ def check_pipeline(repo_path: str) -> list[Check]:
     configs = [
         "config/topics.md", "config/learnings.md", "config/performance.md",
         "config/repos.md", "architecture.md",
+        "config/reserved-slugs.txt", "scripts/check-slug.sh",
     ]
     for c in configs:
         results.append(check_file_exists(str(p / c), f"FILE: {c}"))
+
+    # publish 系コマンドが check-slug.sh を呼んでいるか（スラグ重複防止）
+    for cmd in ["publish-zenn.md", "publish.md"]:
+        cmd_path = p / ".claude" / "commands" / cmd
+        if cmd_path.exists():
+            text = cmd_path.read_text(encoding="utf-8", errors="ignore")
+            referenced = "check-slug.sh" in text
+            results.append(Check(
+                name=f"check-slug参照: {cmd}",
+                passed=referenced,
+                detail="" if referenced else "publish 系コマンドに check-slug.sh の呼び出し言及がない",
+            ))
 
     # agents/ と commands/ の整合性（未参照agentを検出）
     agents_dir = p / ".claude" / "agents"
