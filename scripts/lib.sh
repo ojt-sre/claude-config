@@ -266,3 +266,107 @@ ops.forEach(op => {
 });
 "
 }
+
+# auto_commit <path1> [path2 ...] -- <message>
+# 指定パスを stage → commit する（push はしない）。
+# - 変更なしなら commit せず return 0（冪等）
+# - DRY_RUN=1 のときは `git status --short <paths>` だけ表示
+# - `git add .` / `git add -A` は使わず、明示パスだけ stage する
+#   → 未追跡のメモ・ロックファイル混入を防ぐため。coding-standards.md §8 参照。
+# - 作業ディレクトリは PROJECT_DIR を前提（cd はしない。git -C でも良い）
+auto_commit() {
+    # -- で paths と message を分ける
+    local paths=()
+    local found_sep=0
+    local msg=""
+    for arg in "$@"; do
+        if [ "$found_sep" = "1" ]; then
+            if [ -z "$msg" ]; then msg="$arg"; else msg="${msg} ${arg}"; fi
+        elif [ "$arg" = "--" ]; then
+            found_sep=1
+        else
+            paths+=("$arg")
+        fi
+    done
+
+    if [ "$found_sep" != "1" ] || [ -z "$msg" ]; then
+        echo "${LOG_PREFIX:-} ERROR: auto_commit usage: auto_commit <path...> -- <message>" >&2
+        return 1
+    fi
+    if [ "${#paths[@]}" -eq 0 ]; then
+        echo "${LOG_PREFIX:-} ERROR: auto_commit: path を最低1つ指定すること" >&2
+        return 1
+    fi
+
+    local repo_root
+    repo_root=$(git -C "${PROJECT_DIR}" rev-parse --show-toplevel 2>/dev/null) || {
+        echo "${LOG_PREFIX:-} ERROR: auto_commit: ${PROJECT_DIR} は git リポジトリではない" >&2
+        return 1
+    }
+
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        echo "${LOG_PREFIX:-[DRY-RUN]} DRY-RUN: auto_commit -- ${msg}"
+        git -C "${repo_root}" status --short -- "${paths[@]}" || true
+        return 0
+    fi
+
+    # stage
+    git -C "${repo_root}" add -- "${paths[@]}" || {
+        echo "${LOG_PREFIX:-} ERROR: auto_commit: git add 失敗" >&2
+        return 1
+    }
+
+    # 変更がなければスキップ（冪等）
+    if git -C "${repo_root}" diff --cached --quiet -- "${paths[@]}"; then
+        echo "${LOG_PREFIX:-} INFO: auto_commit: 変更なし (${msg}) → skip"
+        return 0
+    fi
+
+    # コミット（メッセージは -F で渡す。known-failures.md §heredoc 誤検知対策）
+    local msg_file
+    msg_file=$(mktemp)
+    printf '%s\n' "$msg" > "$msg_file"
+    if git -C "${repo_root}" commit -F "$msg_file"; then
+        rm -f "$msg_file"
+        echo "${LOG_PREFIX:-} INFO: auto_commit: ${msg}"
+        return 0
+    else
+        rm -f "$msg_file"
+        echo "${LOG_PREFIX:-} ERROR: auto_commit: git commit 失敗 (${msg})" >&2
+        return 1
+    fi
+}
+
+# auto_push
+# 現在のブランチを origin に push する。
+# - 失敗時は 30s / 90s で最大3回リトライ（ネットワーク揺れ・同時 push 競合対策）
+# - 全て失敗すれば return 1（呼び出し側が exit 1 に連鎖）
+# - DRY_RUN=1 のときはスキップして return 0
+auto_push() {
+    local repo_root
+    repo_root=$(git -C "${PROJECT_DIR}" rev-parse --show-toplevel 2>/dev/null) || {
+        echo "${LOG_PREFIX:-} ERROR: auto_push: ${PROJECT_DIR} は git リポジトリではない" >&2
+        return 1
+    }
+
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        echo "${LOG_PREFIX:-[DRY-RUN]} DRY-RUN: auto_push をスキップ"
+        return 0
+    fi
+
+    local waits=(0 30 90)
+    local i
+    for i in "${waits[@]}"; do
+        if [ "$i" -gt 0 ]; then
+            echo "${LOG_PREFIX:-} INFO: auto_push: ${i}秒待機してリトライ"
+            sleep "$i"
+        fi
+        if git -C "${repo_root}" push origin HEAD; then
+            echo "${LOG_PREFIX:-} INFO: auto_push: 成功"
+            return 0
+        fi
+        echo "${LOG_PREFIX:-} WARN: auto_push: push 失敗"
+    done
+    echo "${LOG_PREFIX:-} ERROR: auto_push: リトライ 3 回全て失敗" >&2
+    return 1
+}

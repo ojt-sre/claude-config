@@ -3,7 +3,7 @@
 > **ここに書くもの**: AIがコードを生成・修正するとき守るべきテンプレート・命名規則・必須パターン（規約）。
 > **書かないもの**: 実運用の経験則 → `best-practices.md` / 過去の失敗パターン → `known-failures.md`
 > プロジェクト固有の規約は各 `.clauderules` の STYLE RULES を優先する。
-> 最終更新: 2026-04-16
+> 最終更新: 2026-04-22
 
 ---
 
@@ -217,7 +217,7 @@ json.load(open(data_file, encoding="utf-8"))
 
 ---
 
-## 6. Git コミット
+## 7. Git コミット
 
 - Conventional Commits（日本語）: `feat:` / `fix:` / `chore:` / `docs:` / `refactor:` / `security:`
 - 1コミット1論理変更（複数ファイルでもOK、複数目的はNG）
@@ -226,9 +226,108 @@ json.load(open(data_file, encoding="utf-8"))
   - subject: diff を見ればわかること（変更の概要）
   - body: diff を見てもわからないこと（背景・制約・却下した代替案）
 
+### cron 起点のコミットプレフィックス目安
+
+| 起点・意図 | プレフィックス |
+|---|---|
+| 新規コンテンツ追加（対面ガイド生成・新記事ドラフト等） | `feat:` |
+| データ修正・表記揺れ同期・既存コンテンツの直し | `fix:` |
+| 派生データ再ビルド（data.json 再生成等）・設定更新・週次反映 | `chore:` |
+
+cron 発の commit には subject 末尾に `(自動)` か `(自動生成)` を付けて、人間コミットと区別できるようにする。
+
 ---
 
-## 7. 今後の拡張ルール
+## 8. git 自動化パターン（cron スクリプトの共通関数）
+
+> **動機**: 自動化スクリプト各々が `git add .` / `git commit` / `git push` を手書きしていた結果、
+> メッセージフォーマット・add 対象・エラーハンドリングが揃わず、`git add .` で意図しないファイル
+> （未追跡メモ・ロック）を巻き込む事故が再発していた（2026-04-22 に5日分の未コミットを救出）。
+> → 自動化の git 操作を L1 共通関数に寄せる。
+
+### レイヤー分離
+
+```
+L1 (実行層)
+├── ~/.claude/scripts/lib.sh
+│   ├── run_cmd() / dispatch_ops()       [既存]
+│   ├── auto_commit()                    [git 自動化エントリ]
+│   └── auto_push()                      [リトライ付き push]
+└── 各リポジトリ/scripts/*.sh             # 呼び出し側は auto_commit / auto_push を叩くだけ
+```
+
+### 4つの設計ルール
+
+1. **git 操作は L1 共通関数に集約する。** 呼び出し側スクリプトに裸の `git add` / `git commit` / `git push` を書かない。
+   → 例外は「既にコミット作成直前の特殊前処理がある」場合のみ。その場合もコメントで理由を残す。
+
+2. **add は必ず明示パス。** `git add .` / `git add -A` は使わない。
+   → 未追跡の作業メモ・ロックファイル・中間生成物を巻き込むため。
+   → `auto_commit` の引数に commit 対象のパス列を渡す。
+
+3. **コミットメッセージは Conventional Commits に揃える。** cron 起点の追加は `feat:`、修正は `fix:`、データ再生成や週次反映は `chore:`。
+   → 人間が履歴を走査したとき、自動コミットとレビュー対象を素早く切り分けられる。
+
+4. **push 失敗は沈黙させず exit 1。** cron.log にエラーが残り morning-report で可視化される。
+   → 一時的な失敗（ネットワーク・同時 push 競合）は `auto_push` 内で指数バックオフリトライして救う。
+
+### 関数シグネチャ
+
+```bash
+# auto_commit <path1> [path2 ...] -- <message>
+#   - 指定パスを stage → commit する（push はしない）
+#   - 変更なしなら何もせず return 0（冪等）
+#   - DRY_RUN=1 のときは `git status --short <paths>` だけ表示して return
+#
+# auto_push
+#   - 現在のブランチを origin に push する
+#   - 失敗時は 30s / 90s で最大3回リトライ
+#   - 全て失敗すれば return 1（呼び出し側が exit 1 に連鎖）
+#   - DRY_RUN=1 のときはスキップして return 0
+```
+
+### 呼び出しパターン
+
+単一コミットで済むスクリプト（週次反映など）:
+
+```bash
+source "${HOME}/.claude/scripts/lib.sh"
+
+# ... 本処理 ...
+
+auto_commit config/learnings.md -- "chore: 週次strategize結果を反映 ($(date +%Y-%m-%d)) (自動)"
+auto_push || { echo "${LOG_PREFIX} ERROR: push 失敗"; exit 1; }
+```
+
+3段コミットするスクリプト（対面ガイド追加: 新規→同期→派生データ）:
+
+```bash
+auto_commit champions/*/matchups.md \
+    -- "feat: 対面ガイド ${PROCESSED}件追加 (自動生成)"
+
+auto_commit champions/*/matchups.md champions/*/guide.md \
+    -- "fix: 対面ガイド 表記揺れ・得意苦手同期 (自動)"
+
+auto_commit docs/data.json \
+    -- "chore: data.json 再ビルド (対面ガイド追加後)"
+
+auto_push || { echo "${LOG_PREFIX} ERROR: push 失敗"; exit 1; }
+```
+
+### 既存スクリプトの移行指針
+
+- 新規スクリプト: 最初から `auto_commit` / `auto_push` を使う。`git add` を書かない。
+- 既存スクリプト: 手書き git を `auto_commit` / `auto_push` に置換する。add 対象は `git add .` を分解して明示パスに書き下す（何が意図したコミット対象か確認するため）。
+- trap EXIT で締めの commit を呼ぶスクリプト（503 リトライ対応等）は、trap 関数の中から `auto_commit` を呼んでよい。`set -e` 下での安全性は `auto_commit` 側で担保する。
+
+### 準拠チェック
+
+- `health-check.py` の `git_commit_hygiene` ルールが `scripts/*.sh` で `git add .` / `git add -A` / 裸の `git commit -m` を検出したら failing にする。
+- `check-*` 系の単発ヘルスチェックスクリプトが git を触らない前提なら除外してよい。その場合も `auto_commit` を使わない根拠をスクリプト冒頭コメントに書く。
+
+---
+
+## 9. 今後の拡張ルール
 
 プロジェクト固有の規約が必要な場合は、各リポジトリの `.clauderules` の `STYLE RULES` セクションに追記する。
 ここには**全リポジトリ共通**のルールのみ記載する。

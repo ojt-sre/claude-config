@@ -51,6 +51,7 @@ CONSTITUTION_RULE_IDS = [
     "l5_autonomy",          # CLAUDE.md に L5 自律権限セクションが存在する
     "architecture_coverage",  # architecture.md に全アーティファクトが記載されている
     "command_frontmatter",    # commands/*.md に正しいYAML frontmatter がある
+    "git_commit_hygiene",   # scripts/*.sh が `git add .`/`-A` を使わず auto_commit 経由でコミットする
 ]
 
 
@@ -186,6 +187,45 @@ def check_no_bare_destructive(repo_path: str) -> list[Check]:  # RULE: productio
                     passed=False,
                     detail=f"'{pattern}' が DRY_RUN ガードなしで使用",
                 ))
+
+    return results
+
+
+def check_git_commit_hygiene(repo_path: str) -> list[Check]:  # RULE: git_commit_hygiene
+    """scripts/*.sh が git add .*/`-A` を避け、auto_commit を使っているか確認
+
+    coding-standards.md §8 参照。
+    - `git add .` / `git add -A` は巻き込み事故の温床なので禁止
+    - git を触らないヘルスチェック系スクリプトは対象外。冒頭コメントに
+      `no-commit: <理由>` と書くことで除外する
+    """
+    import re as _re
+    results = []
+    scripts_dir = Path(repo_path) / "scripts"
+    if not scripts_dir.is_dir():
+        return results
+
+    # `git add .` / `git add -A` / `git add --all` を検出する正規表現
+    bad_add = _re.compile(r"^\s*git\s+add\s+(\.|-A\b|--all\b)", _re.MULTILINE)
+
+    for sh in sorted(scripts_dir.glob("*.sh")):
+        if sh.name == "lib.sh":
+            continue
+        content = sh.read_text(encoding="utf-8", errors="ignore")
+
+        # 明示オプトアウト（git を触らない系スクリプト）
+        if "no-commit:" in content[:500]:
+            continue
+
+        m = bad_add.search(content)
+        if m:
+            # マッチ行番号を特定
+            line_no = content[:m.start()].count("\n") + 1
+            results.append(Check(
+                name=f"git自動化衛生: scripts/{sh.name}",
+                passed=False,
+                detail=f"L{line_no}: '{m.group(0).strip()}' → auto_commit の明示パスに書き換える",
+            ))
 
     return results
 
@@ -614,9 +654,10 @@ def check_common(repo_path: str) -> list[Check]:
     results.extend(check_scripts_dry_run(repo_path))
     results.extend(check_scripts_set_e(repo_path))
 
-    # 憲法ルール: 著作権ガイドライン / 本番保護
+    # 憲法ルール: 著作権ガイドライン / 本番保護 / git 自動化衛生
     results.append(check_copyright_guidelines(repo_path))
     results.extend(check_no_bare_destructive(repo_path))
+    results.extend(check_git_commit_hygiene(repo_path))
 
     # stale / orphan 検出
     results.extend(check_stale_config(repo_path))

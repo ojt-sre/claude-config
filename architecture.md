@@ -60,7 +60,9 @@ AI 生成コンテンツの文体を検証する。
 
 ### 共通ライブラリ（ACTIVE）
 
-`run_cmd()` 等の共通関数。各リポジトリの `scripts/lib.sh` から委譲される canonical 版。
+L1 実行層の共通関数。各リポジトリの `scripts/lib.sh` から委譲される canonical 版。
+- `run_cmd()` / `dispatch_ops()` — L3 コマンド呼び出し・JSON ops 実行
+- `auto_commit()` / `auto_push()` — cron 自動コミット（coding-standards.md §8 参照）
 
 | 種別 | パス |
 |---|---|
@@ -94,6 +96,7 @@ Claude Code のツール実行を制御する hook 群。
 | command | `commands/promote.md` | 知見のグローバル昇格 |
 | command | `commands/runbook-template.md` | SRE Runbook 生成 |
 | command | `commands/rank-tech-feeds.md` | テックフィードのランキング・要約 |
+| command | `commands/obsidian-tech-feeds.md` | テックフィードを Obsidian 用詳細レポート化 |
 | command | `commands/security-triage.md` | セキュリティトリアージ（run_cmd用） |
 | command | `commands/weekly-review.md` | 週次レビュー |
 
