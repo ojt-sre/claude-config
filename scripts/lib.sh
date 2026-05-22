@@ -161,7 +161,7 @@ function matchBracket(text, start, open, close) {
     return -1;
 }
 function isOpArray(v) {
-    return Array.isArray(v) && v.length > 0
+    return Array.isArray(v)
         && v.every(o => o && typeof o === 'object' && typeof o.op === 'string');
 }
 function isOpObject(v) {
@@ -169,12 +169,29 @@ function isOpObject(v) {
 }
 let ops = null;
 // 1) raw 全体を直接 parse（綺麗に JSON だけ返ってくるケース）
+//    空配列 [] は「ops なし＝何もせず正常終了」として受理する。
+//    editorial-review が「修正点なし」を [] で返すケースを失敗扱いしないため（2026-04-29）。
 try {
     const direct = JSON.parse(raw);
     if (isOpArray(direct)) ops = direct;
     else if (isOpObject(direct)) ops = [direct];
 } catch(_) {}
-// 2) [ 候補を全列挙して op 配列を探す
+// 2) [ 候補を全列挙して op 配列を探す（2-pass）
+//    pass1: length > 0 の op 配列を優先。前置きに [] リテラルが混ざる場合に
+//           本物の op 配列より先に空配列を採用してしまうのを防ぐため。
+//    pass2: pass1 で見つからなければ空配列 [] も no-op として受理。
+//           前置き付き [] を返すモデル出力のため（2026-04-29）。
+if (ops === null) {
+    for (let i = 0; i < raw.length; i++) {
+        if (raw[i] !== '[') continue;
+        const end = matchBracket(raw, i, '[', ']');
+        if (end === -1) continue;
+        try {
+            const parsed = JSON.parse(raw.slice(i, end + 1));
+            if (isOpArray(parsed) && parsed.length > 0) { ops = parsed; break; }
+        } catch(_) {}
+    }
+}
 if (ops === null) {
     for (let i = 0; i < raw.length; i++) {
         if (raw[i] !== '[') continue;
@@ -217,6 +234,9 @@ if (ops === null) {
     console.error('--- 受信した raw (先頭 500 文字) ---');
     console.error(raw.slice(0, 500));
     process.exit(1);
+}
+if (ops.length === 0) {
+    console.log('no-op: empty ops array (treated as success)');
 }
 ops.forEach(op => {
     try {
