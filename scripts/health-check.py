@@ -52,6 +52,7 @@ CONSTITUTION_RULE_IDS = [
     "architecture_coverage",  # architecture.md に全アーティファクトが記載されている
     "command_frontmatter",    # commands/*.md に正しいYAML frontmatter がある
     "git_commit_hygiene",   # scripts/*.sh が `git add .`/`-A` を使わず auto_commit 経由でコミットする
+    "python_encoding",      # scripts内 Python の open() に encoding="utf-8" を明示する
 ]
 
 
@@ -116,6 +117,41 @@ def check_scripts_set_e(repo_path: str) -> list[Check]:  # RULE: set_euo_pipefai
             name=f"set -euo pipefail: scripts/{sh.name}",
             passed=has_set_e,
             detail="" if has_set_e else "set -euo pipefail なし",
+        ))
+
+    return results
+
+
+def check_scripts_python_encoding(repo_path: str) -> list[Check]:  # RULE: python_encoding
+    """scripts/ の .py / .sh 内 Python の open() に encoding 指定があるか確認。
+    coding-standards.md §5: テキストファイルの open は encoding="utf-8" 必須（cron 環境で
+    ロケール依存になり日本語が文字化けするのを防ぐ）。バイナリモード・urlopen・os.open は対象外。
+    """
+    results = []
+    scripts_dir = Path(repo_path) / "scripts"
+    if not scripts_dir.is_dir():
+        return results
+
+    binary_markers = ("'rb'", '"rb"', "'wb'", '"wb"', "'ab'", '"ab"',
+                      "'rb+'", '"rb+"', "'r+b'", '"r+b"')
+    for f in sorted(list(scripts_dir.glob("*.py")) + list(scripts_dir.glob("*.sh"))):
+        if f.name == "lib.sh":
+            continue
+        content = f.read_text(encoding="utf-8", errors="ignore")
+        violations = []
+        for i, line in enumerate(content.splitlines(), 1):
+            s = line.strip()
+            if s.startswith("#"):
+                continue
+            if (re.search(r"\bopen\(", s) and "encoding" not in s
+                    and "urlopen" not in s and "os.open" not in s
+                    and not any(b in s for b in binary_markers)):
+                violations.append(i)
+        passed = not violations
+        results.append(Check(
+            name=f"open encoding明示: scripts/{f.name}",
+            passed=passed,
+            detail="" if passed else f"open() に encoding 未指定: 行 {violations[:10]}",
         ))
 
     return results
@@ -653,6 +689,7 @@ def check_common(repo_path: str) -> list[Check]:
     # 憲法ルール: scripts/ の --dry-run / set -euo pipefail 実装
     results.extend(check_scripts_dry_run(repo_path))
     results.extend(check_scripts_set_e(repo_path))
+    results.extend(check_scripts_python_encoding(repo_path))
 
     # 憲法ルール: 著作権ガイドライン / 本番保護 / git 自動化衛生
     results.append(check_copyright_guidelines(repo_path))
