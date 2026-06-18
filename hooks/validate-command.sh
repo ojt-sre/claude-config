@@ -38,6 +38,18 @@ echo "$SANITIZED" | grep -qiE '(--profile[= ](prod|production)|--context[= ](pro
 echo "$SANITIZED" | grep -qE '(cat|less|more|head|tail)\s+.*\.(pem|key|p12|pfx)' && block "reading secret files"
 echo "$SANITIZED" | grep -qE 'aws\s+.*--query.*SecretAccessKey|printenv.*AWS_SECRET' && block "exposing AWS credentials"
 
+# /mnt/c (CRLF) を生 cat/grep で読むと \r で複数行出力が崩れる
+# （known-failures.md「/mnt/c ... 複数行ツール出力が崩れる」）。Read/Grep tool は
+# read-grep-guard.sh が止めるが、Bash の生コマンドはこちらで止めて mcat へ誘導する。
+# 既知 symlink obsidian_vault も /mnt/c/Obsidian を指すので対象に含める。
+# 例外（通す）: tr -d（既に \r 除去済み）/ mcat（ヘルパー自身）/ grep -c・wc（単一数値で崩れない）。
+if echo "$SANITIZED" | grep -qE '(/mnt/c(/|\s|$)|obsidian_vault)'; then
+  if ! echo "$SANITIZED" | grep -qE "(tr\s+-d|mcat|grep\s+-[a-zA-Z]*c|--count|wc\s)"; then
+    echo "$SANITIZED" | grep -qE '(^|\s|\|)\s*(cat|tac|head|tail|less|more|grep|egrep|fgrep)\s' \
+      && block "/mnt/c は CRLF。生 cat/grep だと出力が崩れる。mcat '<file>' か 'grep ... | tr -d \r' を使え"
+  fi
+fi
+
 # パッケージのグローバルインストール
 echo "$SANITIZED" | grep -qE '(npm\s+(install|i)\s+(-g|--global)|gem\s+install\s)' && block "global package install"
 

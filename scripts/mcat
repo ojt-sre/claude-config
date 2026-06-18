@@ -1,0 +1,48 @@
+#!/bin/bash
+# mcat — /mnt/c (CRLF) ファイルを安全に読むためのリーダーヘルパー
+# 目的: 行末 \r を除去して標準出力に出す。CR汚染（端末でカーソルが列0に戻り
+#       複数行ツール出力が崩れる現象。known-failures.md「/mnt/c ... 複数行ツール
+#       出力が崩れる」参照）の根本対処。LF ファイルには no-op なので冪等。
+#
+# 使い方:
+#   mcat <file> [file2 ...]        # \r 除去して出力（grep にパイプする用）
+#   mcat -n <file>                 # 行番号付き（Read tool 相当。file:line 引用用）
+#   mcat <file> | grep -n PATTERN  # grep -n が出す行番号は元ファイルと一致する
+#                                  # （\r 除去は行数を変えないため）
+#
+# 設計メモ: パスが /mnt/c か否かは判定しない。tr -d '\r' は LF ファイルでは
+# 無害な no-op なので、常に通す方が「どのファイルでも mcat なら安全」でサボれる
+# （運用の楽さ優先）。判定を入れて分岐を増やさない理由をここに残す。
+# 全ファイル LF へ一括変換する案も検討したが、Obsidian/Windows が再 CRLF 化し
+# git ノイズになるため却下（known-failures.md 実測 2026-06-16）。読み出し側で
+# 吸収する本方式を採用。
+
+set -euo pipefail
+
+number=0
+if [ "${1:-}" = "-n" ]; then
+  number=1
+  shift
+fi
+
+if [ "$#" -eq 0 ]; then
+  echo "usage: mcat [-n] <file> [file2 ...]" >&2
+  exit 1
+fi
+
+# 複数ファイル + -n のとき、どのファイルの行番号か分かるようヘッダを出す
+multi=0
+[ "$#" -gt 1 ] && multi=1
+
+for f in "$@"; do
+  if [ ! -f "$f" ]; then
+    echo "mcat: not a file: $f" >&2
+    exit 1
+  fi
+  [ "$multi" -eq 1 ] && echo "==> $f <=="
+  if [ "$number" -eq 1 ]; then
+    tr -d '\r' < "$f" | cat -n
+  else
+    tr -d '\r' < "$f"
+  fi
+done

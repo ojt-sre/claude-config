@@ -247,3 +247,19 @@ pdftoppm -png -r 100 "/path/to/file.pdf" /tmp/pdf-img/page
 
 再発予防: 「っX」（X=ASCII大文字）の文字化けは日本語語尾全般で起こり得る。他のキャラクター口調スキル（「〜ッス」「〜ナリ」等）を作るときも、語尾を ASCII 化される可能性を考慮して後処理サニタイズを最初から入れる。
 誤爆チェック: `grep -hoE "っS[A-Za-z]+"` で「っS」直後にアルファベットが続く例を確認したら 0 件。英単語の一部に巻き込まれるパターンはなかったため、`っS → っス` の単純置換で安全。
+
+## /mnt/c（Windows・CRLF）ファイルの複数行ツール出力が崩れる
+
+症状: `/mnt/c/Obsidian/` 等の Windows 側ファイルを `grep -n` / `Read` で読むと複数行出力が崩れる（行の重複・前行の上書き・断片の氾濫）。`grep -c` / `wc -l` 等の**単一数値出力は正常**。Edit/Write の反映自体は正常（表示だけの問題）。
+原因（2026-06-16 切り分け確定）: **CRLF の `\r`**。各行末の `\r` が端末でカーソルを列0に戻し後続文字を上書きする。証拠: ①単一数値=正常 ②ローカル(LF)の複数行=正常 ③/mnt/c の生 grep=崩れる ④`\r` を抜く（LF保存/`tr -d '\r'`）と完全に綺麗 → `\r` が主犯。
+対処（根本対処済み 2026-06-18）: /mnt/c は **`mcat` で読む**。`~/.claude/scripts/mcat`（`~/.local/bin/mcat` に symlink）が `\r` を除去して出力する（LF ファイルには no-op）。さらに `PreToolUse` hook `read-grep-guard.sh` が Read/Grep tool で `/mnt/c`（symlink 裏口 `~/obsidian_vault` 含む）を読もうとすると exit 2 で止め、mcat へ誘導する＝「手で tr するのを忘れても崩れない」。
+
+```bash
+mcat -n "/mnt/c/path/file.md"                 # Read 相当（行番号付き）
+mcat "/mnt/c/path/file.md" | grep -n "pattern" # grep -n は元の行番号と一致
+grep -rn "pattern" /mnt/c/dir | tr -d '\r'     # ディレクトリ grep は出力の \r を剥がす
+```
+
+- Edit/Write は実体に作用するので CRLF でも正常（old_string は1行内で完結させる＝改行を跨がない）。状態確認は `grep -c` 等の数値で裏取り。
+- LF へ一括変換は避ける（Obsidian/Windows が再 CRLF 化・git ノイズ）。読み出し側で吸収する方式を採用。
+- hook 追加直後はセッション再起動するまで発火しない場合がある。再起動後は Read/Grep tool が自動で止まる。
