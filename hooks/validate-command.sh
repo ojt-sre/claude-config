@@ -42,9 +42,11 @@ echo "$SANITIZED" | grep -qE 'aws\s+.*--query.*SecretAccessKey|printenv.*AWS_SEC
 # （known-failures.md「/mnt/c ... 複数行ツール出力が崩れる」）。Read/Grep tool は
 # read-grep-guard.sh が止めるが、Bash の生コマンドはこちらで止めて mcat へ誘導する。
 # 既知 symlink obsidian_vault も /mnt/c/Obsidian を指すので対象に含める。
-# 例外（通す）: tr -d（既に \r 除去済み）/ mcat（ヘルパー自身）/ grep -c・wc（単一数値で崩れない）。
+# 例外（通す）: tr -d（既に \r 除去済み）/ mcat（ヘルパー自身）/ grep -c・wc（単一数値で崩れない）/
+#   heredoc(<<)（本文は入力データ。/mnt/c という文字列を含んでもファイル読み出しではない。
+#   commit メッセージを cat heredoc で書いて誤検知した実害あり 2026-06-18）。
 if echo "$SANITIZED" | grep -qE '(/mnt/c(/|\s|$)|obsidian_vault)'; then
-  if ! echo "$SANITIZED" | grep -qE "(tr\s+-d|mcat|grep\s+-[a-zA-Z]*c|--count|wc\s)"; then
+  if ! echo "$SANITIZED" | grep -qE "(tr\s+-d|mcat|grep\s+-[a-zA-Z]*c|--count|wc\s|<<)"; then
     echo "$SANITIZED" | grep -qE '(^|\s|\|)\s*(cat|tac|head|tail|less|more|grep|egrep|fgrep)\s' \
       && block "/mnt/c は CRLF。生 cat/grep だと出力が崩れる。mcat '<file>' か 'grep ... | tr -d \r' を使え"
   fi

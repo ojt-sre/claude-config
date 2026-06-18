@@ -231,3 +231,5 @@ grep -rn "pattern" /mnt/c/dir | tr -d '\r'     # ディレクトリ grep は出�
 - Edit/Write は実体に作用するので CRLF でも正常（old_string は1行内で完結させる＝改行を跨がない）。状態確認は `grep -c` 等の数値で裏取り。
 - LF へ一括変換は避ける（Obsidian/Windows が再 CRLF 化・git ノイズ）。読み出し側で吸収する方式を採用。
 - hook 追加直後はセッション再起動するまで発火しない場合がある。再起動後は Read/Grep tool が自動で止まる。
+- **/mnt/c でも全部が CRLF とは限らない。** WSL の Write tool で作られたファイルは LF。追記時に機械的に `sed 's/$/\r/'` で `\r` を足すと、LF ファイルを混在 CRLF に**自分で汚染する**（2026-06-18 当日ログで実際にやらかした）。追記前に `tr -cd '\r' | wc -c` で既存改行を確認し、元が LF なら LF のまま append する。`mcat` 読み出しは LF/CRLF どちらでも安全。
+- Bash 生コマンドも `validate-command.sh` が `/mnt/c` への生 cat/grep を block して mcat へ誘導する。**誤検知の罠**: commit メッセージを `cat > /tmp/x <<'EOF' ... /mnt/c ... EOF` の heredoc で書くと、本文の「/mnt/c」と `cat` が反応して自分のガードに弾かれた（2026-06-18 実害）。→ heredoc 本文は入力データでファイル読みではないため、`<<` を含むコマンドはガード例外に追加済み。commit メッセージに `/mnt/c` を書くときは Write tool でファイルに出して `git commit -F` が安全（heredoc を Bash 行に出さない）。
